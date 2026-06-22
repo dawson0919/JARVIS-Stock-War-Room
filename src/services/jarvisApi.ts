@@ -8,6 +8,14 @@ export const topRatedStocks: TopRatedStock[] = [
   { symbol: 'SPY', name: 'S&P 500 ETF', score: 78 },
 ];
 
+export const bottomRatedStocks: TopRatedStock[] = [
+  { symbol: 'RIVN', name: 'Rivian Automotive Inc.', score: 42 },
+  { symbol: 'SNAP', name: 'Snap Inc.', score: 39 },
+  { symbol: 'PLUG', name: 'Plug Power Inc.', score: 35 },
+  { symbol: 'LCID', name: 'Lucid Group Inc.', score: 33 },
+  { symbol: 'WBA', name: 'Walgreens Boots Alliance Inc.', score: 31 },
+];
+
 export const mockMarketBrief: MarketBrief = {
   asOf: null,
   marketPulse: 82,
@@ -74,6 +82,19 @@ export async function fetchTopStocks(limit = 5): Promise<TopRatedStock[]> {
   const response = await fetch(`${baseUrl.replace(/\/$/, '')}/stocks/top?limit=${limit}`);
   if (!response.ok) {
     throw new Error(`JARVIS API ${response.status}`);
+  }
+
+  const payload = await response.json() as { stocks: TopRatedStock[] };
+  return payload.stocks;
+}
+
+export async function fetchBottomStocks(limit = 10): Promise<TopRatedStock[]> {
+  const baseUrl = process.env.EXPO_PUBLIC_JARVIS_API_URL;
+  if (!baseUrl) return bottomRatedStocks.slice(0, limit);
+
+  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/stocks/bottom?limit=${limit}`);
+  if (!response.ok) {
+    return bottomRatedStocks.slice(0, limit);
   }
 
   const payload = await response.json() as { stocks: TopRatedStock[] };
