@@ -432,6 +432,15 @@ function companyProfileText(analysis: StockAnalysis, language: Language): string
   if (symbol === 'BE') {
     return 'Bloom Energy Corporation 主要設計與銷售固態氧化物燃料電池系統，應用在企業與資料中心的現場發電。公司題材和分散式能源、資料中心用電需求、工業減碳與氫能敘事有關。';
   }
+  if (symbol === 'NVDA') {
+    return 'NVIDIA Corporation 主要設計 GPU、AI 加速運算平台與資料中心基礎設施，產品應用在人工智慧訓練與推論、遊戲、專業視覺化、車用運算與邊緣 AI。公司題材和 AI 資本支出、資料中心需求、晶片供應鏈與大型雲端客戶投資週期高度相關。';
+  }
+  if (symbol === 'AAPL') {
+    return 'Apple Inc. 以 iPhone、Mac、iPad、穿戴裝置與服務生態系為核心。研究重點包含硬體週期、服務收入成長、毛利率、供應鏈與全球消費需求。';
+  }
+  if (symbol === 'MSFT') {
+    return 'Microsoft Corporation 主要提供雲端基礎設施、企業軟體、作業系統、遊戲與 AI 服務。研究重點包含 Azure 成長、AI 商業化、企業支出與雲端毛利率。';
+  }
   return `${analysis.name ?? symbol} 屬於 ${sector}。JARVIS 目前會從產業位置、量化因子、市場狀態與風險輸入，建立這檔股票的研究輪廓。`;
 }
 
@@ -469,6 +478,9 @@ function factorLabel(name: string, language: Language): string {
     Value: '估值',
     Quality: '品質',
     Growth: '成長',
+    Valuation: '估值',
+    Flow: '資金流',
+    Risk: '風險',
     Revisions: '預估修正',
     'Short Interest': '放空壓力',
     Insider: '內部人',

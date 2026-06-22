@@ -25,7 +25,14 @@ export const mockMarketBrief: MarketBrief = {
   universeCount: topRatedStocks.length,
 };
 
-const factorNames = ['Quality', 'Growth', 'Valuation', 'Momentum', 'Flow', 'Risk'];
+const factorNames = ['Quality', 'Growth', 'Value', 'Momentum', 'Institutional', 'Short Interest'];
+
+const mockCompanyProfiles: Record<string, string> = {
+  NVDA: 'NVIDIA designs GPUs, accelerated computing platforms, and AI infrastructure used across data centers, gaming, visualization, automotive, and edge AI.',
+  AAPL: 'Apple designs consumer devices, software, and services, with revenue driven by iPhone, Mac, iPad, wearables, and its services ecosystem.',
+  MSFT: 'Microsoft provides cloud infrastructure, productivity software, operating systems, enterprise platforms, gaming, and AI services.',
+  BE: 'Bloom Energy Corporation designs and sells solid-oxide fuel-cell systems used for on-site power generation.',
+};
 
 export function getMockStockAnalysis(symbol: string): StockAnalysis {
   const seed = symbol.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -40,6 +47,8 @@ export function getMockStockAnalysis(symbol: string): StockAnalysis {
 
   return {
     symbol,
+    name: topRatedStocks.find((stock) => stock.symbol === symbol)?.name ?? symbol,
+    sector: symbol === 'NVDA' ? 'Information Technology' : 'US Equity',
     score,
     rating,
     summary: `${symbol} currently screens as a ${rating.toLowerCase()} in the JARVIS research model. The next production step is to connect this card to the FastAPI scoring endpoint generated from the Python JARVIS pipeline.`,
@@ -48,6 +57,13 @@ export function getMockStockAnalysis(symbol: string): StockAnalysis {
       name,
       score: Math.max(35, Math.min(96, score + ((seed + index * 13) % 21) - 10)),
     })),
+    companyProfile: mockCompanyProfiles[symbol] ?? `${symbol} is profiled through the JARVIS research model using sector context, factor strength, market regime, and risk inputs.`,
+    qualitativeAnalysis: `${symbol} is a research candidate in the JARVIS model. Review the strongest and weakest factor scores before making any decision.`,
+    newsCatalysts: [
+      `Company/news check: verify the latest filings, earnings date, and management guidance for ${symbol}.`,
+      `Sector catalyst: compare ${symbol} against sector peers and relative strength.`,
+      `Market catalyst: watch revisions, volume, and market risk appetite; current score is ${score}/100.`,
+    ],
   };
 }
 
