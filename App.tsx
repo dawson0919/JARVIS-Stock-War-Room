@@ -259,7 +259,7 @@ export default function App() {
                 <View>
                   <Text style={styles.symbol}>{analysis.symbol}</Text>
                   <Text style={[styles.rating, { color: scoreColor(analysis.score) }]}>
-                    {analysis.rating}
+                    {ratingText(analysis.rating, analysis.score, language)}
                   </Text>
                 </View>
                 <View style={[styles.largeScore, { borderColor: scoreColor(analysis.score) }]}>
@@ -284,11 +284,25 @@ export default function App() {
               </View>
               <View style={styles.companyBox}>
                 <Text style={styles.sectionTitle}>{t.companyIntro}</Text>
-                <Text style={styles.summary}>{analysis.summary}</Text>
+                <Text style={styles.summary}>
+                  {companyProfileText(analysis, language)}
+                </Text>
+              </View>
+              <View style={styles.companyBox}>
+                <Text style={styles.sectionTitle}>L3 {language === 'zh' ? '質化分析' : 'Qualitative Analysis'}</Text>
+                <Text style={styles.summary}>
+                  {qualitativeText(analysis, language)}
+                </Text>
               </View>
               <View style={styles.newsBox}>
                 <Text style={styles.sectionTitle}>{t.newsTitle}</Text>
-                <Text style={styles.riskText}>{t.newsHint}</Text>
+                {catalystItems(analysis, language).length ? (
+                  catalystItems(analysis, language).map((item) => (
+                    <ChecklistItem key={item} label={item} />
+                  ))
+                ) : (
+                  <Text style={styles.riskText}>{t.newsHint}</Text>
+                )}
               </View>
               <View style={styles.factorPanel}>
                 <View style={styles.panelHeader}>
@@ -298,7 +312,7 @@ export default function App() {
                 {sortedFactors.map((factor) => (
                   <View key={factor.name} style={styles.factorRow}>
                     <View style={styles.factorTopLine}>
-                      <Text style={styles.factorName}>{factor.name}</Text>
+                      <Text style={styles.factorName}>{factorLabel(factor.name, language)}</Text>
                       <Text style={[styles.factorValue, { color: scoreColor(factor.score) }]}>
                         {factor.score}
                       </Text>
@@ -316,7 +330,7 @@ export default function App() {
               </View>
               <View style={styles.riskBox}>
                 <Text style={styles.riskTitle}>{t.keyRisk}</Text>
-                <Text style={styles.riskText}>{analysis.keyRisk}</Text>
+                <Text style={styles.riskText}>{riskText(analysis, language)}</Text>
               </View>
               <View style={styles.checklist}>
                 <Text style={styles.sectionTitle}>{t.checklist}</Text>
@@ -409,6 +423,77 @@ function ChecklistItem({ label }: { label: string }) {
       <Text style={styles.checkText}>{label}</Text>
     </View>
   );
+}
+
+function companyProfileText(analysis: StockAnalysis, language: Language): string {
+  if (language === 'en') return analysis.companyProfile ?? analysis.summary;
+  const symbol = analysis.symbol;
+  const sector = analysis.sector ?? '所屬產業';
+  if (symbol === 'BE') {
+    return 'Bloom Energy Corporation 主要設計與銷售固態氧化物燃料電池系統，應用在企業與資料中心的現場發電。公司題材和分散式能源、資料中心用電需求、工業減碳與氫能敘事有關。';
+  }
+  return `${analysis.name ?? symbol} 屬於 ${sector}。JARVIS 目前會從產業位置、量化因子、市場狀態與風險輸入，建立這檔股票的研究輪廓。`;
+}
+
+function qualitativeText(analysis: StockAnalysis, language: Language): string {
+  if (language === 'en') return analysis.qualitativeAnalysis ?? analysis.summary;
+  const sorted = [...analysis.factors].sort((a, b) => b.score - a.score);
+  const strengths = sorted.slice(0, 3).map((factor) => `${factorLabel(factor.name, 'zh')} ${factor.score}`).join('、');
+  const weaknesses = sorted.slice(-3).map((factor) => `${factorLabel(factor.name, 'zh')} ${factor.score}`).join('、');
+  const side = analysis.score >= 55 ? '多方研究候選' : '空方警戒候選';
+  const tone = analysis.score >= 85
+    ? '量化結構偏強，但仍要確認估值、財報與大盤狀態。'
+    : analysis.score >= 70
+      ? '分數足以列入觀察名單，但還不能跳過人工驗證。'
+      : analysis.score >= 55
+        ? '結構偏混合，催化確認與部位大小比單一分數更重要。'
+        : '結構偏弱，除非出現明確催化，否則應先視為警戒區。';
+  return `L3 質化觀點：${analysis.symbol} 目前屬於${side}，產業為 ${analysis.sector ?? '未知'}。強項因子：${strengths || '暫無'}。弱項因子：${weaknesses || '暫無'}。${tone}`;
+}
+
+function catalystItems(analysis: StockAnalysis, language: Language): string[] {
+  if (language === 'en') return analysis.newsCatalysts ?? [];
+  const sector = analysis.sector ?? '同產業';
+  return [
+    `公司新聞：確認 ${analysis.symbol} 最新公告、財報日期、法說會與管理層指引。`,
+    `產業催化：比較 ${analysis.symbol} 在 ${sector} 的相對強弱與資金是否延續。`,
+    `市場催化：追蹤財測修正、成交量變化與市場風險偏好；目前分數為 ${analysis.score}/100。`,
+    '提醒：目前尚未串接即時新聞 API，新聞標題仍需到資料源交叉驗證。',
+  ];
+}
+
+function factorLabel(name: string, language: Language): string {
+  if (language === 'en') return name;
+  const labels: Record<string, string> = {
+    Momentum: '動能',
+    Value: '估值',
+    Quality: '品質',
+    Growth: '成長',
+    Revisions: '預估修正',
+    'Short Interest': '放空壓力',
+    Insider: '內部人',
+    Institutional: '機構籌碼',
+  };
+  return labels[name] ?? name;
+}
+
+function ratingText(rating: string, score: number, language: Language): string {
+  if (language === 'en') return rating;
+  if (score >= 90) return '強勢領先';
+  if (score >= 80) return '優於市場';
+  if (score >= 60) return '中性觀察';
+  if (score >= 40) return '弱勢警戒';
+  return '高風險區';
+}
+
+function riskText(analysis: StockAnalysis, language: Language): string {
+  if (language === 'en') return analysis.keyRisk;
+  const scoreRisk = analysis.score >= 70
+    ? '主要風險不是分數本身，而是追高後遇到大盤轉弱或財報預期修正。'
+    : analysis.score >= 55
+      ? '主要風險在於因子結構不夠集中，容易受消息與大盤波動影響。'
+      : '主要風險在於弱勢因子仍未修復，反彈可能只是短線技術修正。';
+  return `${scoreRisk} 操作前仍應確認最新財報、新聞催化、成交量與大盤環境。`;
 }
 
 function scoreColor(score: number): string {
