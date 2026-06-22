@@ -20,6 +20,7 @@ import {
   fetchTopStocks,
   mockMarketBrief,
   bottomRatedStocks as mockBottomRatedStocks,
+  StockNotFoundError,
   topRatedStocks as mockTopRatedStocks,
 } from './src/services/jarvisApi';
 import type { MarketBrief, StockAnalysis, TopRatedStock } from './src/types/jarvis';
@@ -40,6 +41,8 @@ const copy = {
     emptyMessage: '例如 NVDA、AAPL、TSLA、SPY 或 QQQ。',
     failedTitle: '分析失敗',
     apiFailed: '目前無法連線到 JARVIS API。',
+    notFoundTitle: '目前股票池沒有這個代號',
+    notFoundMessage: 'JARVIS 目前只分析 scored_universe_latest.csv 內的股票。請改查 10 大多方/空方榜單內的代號，或等下一次資料更新後再查。',
     posture: '研究定位',
     universeSide: '多空方向',
     factorCount: '因子數',
@@ -80,6 +83,8 @@ const copy = {
     emptyMessage: 'Try NVDA, AAPL, TSLA, SPY, or QQQ.',
     failedTitle: 'Analysis failed',
     apiFailed: 'Unable to reach JARVIS API.',
+    notFoundTitle: 'Symbol not in current universe',
+    notFoundMessage: 'JARVIS currently analyzes symbols inside scored_universe_latest.csv only. Try a ticker from the top bullish/bearish lists, or check again after the next data refresh.',
     posture: 'Research posture',
     universeSide: 'Universe side',
     factorCount: 'Factor count',
@@ -174,6 +179,11 @@ export default function App() {
     try {
       setAnalysis(await fetchStockAnalysis(normalized));
     } catch (error) {
+      if (error instanceof StockNotFoundError) {
+        setAnalysis(null);
+        Alert.alert(t.notFoundTitle, `${normalized}: ${t.notFoundMessage}`);
+        return;
+      }
       const message = error instanceof Error ? error.message : t.apiFailed;
       Alert.alert(t.failedTitle, message);
     } finally {

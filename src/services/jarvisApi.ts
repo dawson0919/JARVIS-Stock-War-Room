@@ -1,5 +1,12 @@
 import type { MarketBrief, StockAnalysis, TopRatedStock } from '../types/jarvis';
 
+export class StockNotFoundError extends Error {
+  constructor(public readonly symbol: string) {
+    super(`${symbol} is not in the current JARVIS scored universe.`);
+    this.name = 'StockNotFoundError';
+  }
+}
+
 export const topRatedStocks: TopRatedStock[] = [
   { symbol: 'NVDA', name: 'NVIDIA Corp.', score: 91 },
   { symbol: 'MSFT', name: 'Microsoft Corp.', score: 88 },
@@ -72,6 +79,9 @@ export async function fetchStockAnalysis(symbol: string): Promise<StockAnalysis>
   if (!baseUrl) return getMockStockAnalysis(symbol);
 
   const response = await fetch(`${baseUrl.replace(/\/$/, '')}/stocks/${symbol}/score`);
+  if (response.status === 404) {
+    throw new StockNotFoundError(symbol);
+  }
   if (!response.ok) {
     throw new Error(`JARVIS API ${response.status}`);
   }
