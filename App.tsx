@@ -61,12 +61,18 @@ export default function App() {
     return 'Defensive posture. Wait for stronger confirmation.';
   }, [marketBrief.marketPulse]);
 
-  async function analyzeSymbol() {
-    const normalized = symbol.trim().toUpperCase();
+  const sortedFactors = useMemo(() => {
+    if (!analysis) return [];
+    return [...analysis.factors].sort((a, b) => b.score - a.score);
+  }, [analysis]);
+
+  async function analyzeSymbol(nextSymbol?: string) {
+    const normalized = (nextSymbol ?? symbol).trim().toUpperCase();
     if (!normalized) {
       Alert.alert('Enter a symbol', 'Type a US ticker such as NVDA, AAPL, TSLA, SPY, or QQQ.');
       return;
     }
+    setSymbol(normalized);
     setIsLoading(true);
     try {
       setAnalysis(await fetchStockAnalysis(normalized));
@@ -89,7 +95,10 @@ export default function App() {
           <View style={styles.hero}>
             <View>
               <Text style={styles.eyebrow}>JARVIS STOCK WAR ROOM</Text>
-              <Text style={styles.title}>US Equity Scores, AI Research, Watchlist Signals</Text>
+              <Text style={styles.title}>US Equity Scoring Console</Text>
+              <Text style={styles.heroSub}>
+                Rank the universe, inspect factor strength, and turn a ticker into a research brief.
+              </Text>
             </View>
             <View style={styles.scoreBadge}>
               <Text style={styles.scoreBadgeValue}>{marketBrief.marketPulse}</Text>
@@ -108,16 +117,33 @@ export default function App() {
                 autoCapitalize="characters"
                 autoCorrect={false}
                 onChangeText={setSymbol}
-                onSubmitEditing={analyzeSymbol}
+                onSubmitEditing={() => analyzeSymbol()}
                 placeholder="NVDA"
                 placeholderTextColor="#69707f"
                 returnKeyType="search"
                 style={styles.input}
                 value={symbol}
               />
-              <Pressable onPress={analyzeSymbol} style={styles.primaryButton}>
+              <Pressable
+                disabled={isLoading}
+                onPress={() => analyzeSymbol()}
+                style={[styles.primaryButton, isLoading ? styles.disabledButton : null]}
+              >
                 <Text style={styles.primaryButtonText}>{isLoading ? 'Loading' : 'Analyze'}</Text>
               </Pressable>
+            </View>
+            <View style={styles.quickRow}>
+              {topStocks.slice(0, 4).map((stock) => (
+                <Pressable
+                  disabled={isLoading}
+                  key={stock.symbol}
+                  onPress={() => analyzeSymbol(stock.symbol)}
+                  style={styles.quickChip}
+                >
+                  <Text style={styles.quickChipText}>{stock.symbol}</Text>
+                  <Text style={styles.quickChipScore}>{stock.score}</Text>
+                </Pressable>
+              ))}
             </View>
           </View>
 
@@ -126,24 +152,65 @@ export default function App() {
               <View style={styles.cardHeader}>
                 <View>
                   <Text style={styles.symbol}>{analysis.symbol}</Text>
-                  <Text style={styles.rating}>{analysis.rating}</Text>
+                  <Text style={[styles.rating, { color: scoreColor(analysis.score) }]}>
+                    {analysis.rating}
+                  </Text>
                 </View>
-                <View style={styles.largeScore}>
-                  <Text style={styles.largeScoreText}>{analysis.score}</Text>
-                  <Text style={styles.largeScoreSub}>/100</Text>
+                <View style={[styles.largeScore, { borderColor: scoreColor(analysis.score) }]}>
+                  <Text style={[styles.largeScoreText, { color: scoreColor(analysis.score) }]}>
+                    {analysis.score}
+                  </Text>
+                  <Text style={styles.largeScoreSub}> / 100</Text>
                 </View>
               </View>
+              <View style={styles.scoreMeterTrack}>
+                <View
+                  style={[
+                    styles.scoreMeterFill,
+                    { backgroundColor: scoreColor(analysis.score), width: `${analysis.score}%` },
+                  ]}
+                />
+              </View>
+              <View style={styles.researchStrip}>
+                <Metric label="Research posture" value={scoreLabel(analysis.score)} />
+                <Metric label="Universe side" value="Long screen" />
+                <Metric label="Factor count" value={`${analysis.factors.length}`} />
+              </View>
               <Text style={styles.summary}>{analysis.summary}</Text>
-              <View style={styles.factorGrid}>
-                {analysis.factors.map((factor) => (
-                  <View key={factor.name} style={styles.factorCard}>
-                    <Text style={styles.factorValue}>{factor.score}</Text>
-                    <Text style={styles.factorName}>{factor.name}</Text>
+              <View style={styles.factorPanel}>
+                <View style={styles.panelHeader}>
+                  <Text style={styles.sectionTitle}>Factor breakdown</Text>
+                  <Text style={styles.updated}>0-100 model score</Text>
+                </View>
+                {sortedFactors.map((factor) => (
+                  <View key={factor.name} style={styles.factorRow}>
+                    <View style={styles.factorTopLine}>
+                      <Text style={styles.factorName}>{factor.name}</Text>
+                      <Text style={[styles.factorValue, { color: scoreColor(factor.score) }]}>
+                        {factor.score}
+                      </Text>
+                    </View>
+                    <View style={styles.factorTrack}>
+                      <View
+                        style={[
+                          styles.factorFill,
+                          { backgroundColor: scoreColor(factor.score), width: `${factor.score}%` },
+                        ]}
+                      />
+                    </View>
                   </View>
                 ))}
               </View>
-              <Text style={styles.riskTitle}>Key risk</Text>
-              <Text style={styles.riskText}>{analysis.keyRisk}</Text>
+              <View style={styles.riskBox}>
+                <Text style={styles.riskTitle}>Key risk</Text>
+                <Text style={styles.riskText}>{analysis.keyRisk}</Text>
+              </View>
+              <View style={styles.checklist}>
+                <Text style={styles.sectionTitle}>Research checklist</Text>
+                <ChecklistItem label="Confirm latest earnings date and guidance." />
+                <ChecklistItem label="Compare factor score against sector peers." />
+                <ChecklistItem label="Check liquidity, event risk, and position sizing before any decision." />
+              </View>
             </View>
           ) : null}
 
@@ -166,14 +233,19 @@ export default function App() {
               <Text style={styles.updated}>Pro unlocks Top 100</Text>
             </View>
             {topStocks.map((stock, index) => (
-              <View key={stock.symbol} style={styles.stockRow}>
+              <Pressable
+                disabled={isLoading}
+                key={stock.symbol}
+                onPress={() => analyzeSymbol(stock.symbol)}
+                style={styles.stockRow}
+              >
                 <Text style={styles.rank}>#{index + 1}</Text>
                 <View style={styles.stockInfo}>
                   <Text style={styles.stockSymbol}>{stock.symbol}</Text>
                   <Text style={styles.stockName}>{stock.sector ?? stock.name}</Text>
                 </View>
                 <Text style={styles.stockScore}>{stock.score}</Text>
-              </View>
+              </Pressable>
             ))}
           </View>
 
@@ -199,6 +271,29 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ChecklistItem({ label }: { label: string }) {
+  return (
+    <View style={styles.checklistItem}>
+      <View style={styles.checkDot} />
+      <Text style={styles.checkText}>{label}</Text>
+    </View>
+  );
+}
+
+function scoreColor(score: number): string {
+  if (score >= 85) return '#18d79a';
+  if (score >= 70) return '#4f8cff';
+  if (score >= 55) return '#ffcc66';
+  return '#ff6b72';
+}
+
+function scoreLabel(score: number): string {
+  if (score >= 85) return 'Strong';
+  if (score >= 70) return 'Watch';
+  if (score >= 55) return 'Neutral';
+  return 'Caution';
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -211,6 +306,9 @@ const styles = StyleSheet.create({
     gap: 18,
     padding: 20,
     paddingBottom: 40,
+    width: '100%',
+    maxWidth: 980,
+    alignSelf: 'center',
   },
   hero: {
     backgroundColor: '#111720',
@@ -234,7 +332,15 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '900',
     lineHeight: 32,
-    maxWidth: 270,
+    maxWidth: 420,
+  },
+  heroSub: {
+    color: '#9ba4b2',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+    marginTop: 10,
+    maxWidth: 470,
   },
   scoreBadge: {
     alignItems: 'center',
@@ -299,9 +405,38 @@ const styles = StyleSheet.create({
     minWidth: 98,
     paddingHorizontal: 18,
   },
+  disabledButton: {
+    opacity: 0.65,
+  },
   primaryButtonText: {
     color: '#03100b',
     fontSize: 15,
+    fontWeight: '900',
+  },
+  quickRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  quickChip: {
+    alignItems: 'center',
+    backgroundColor: '#080a0e',
+    borderColor: '#243044',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  quickChipText: {
+    color: '#f6f8fb',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  quickChipScore: {
+    color: '#19c58c',
+    fontSize: 13,
     fontWeight: '900',
   },
   analysisCard: {
@@ -330,7 +465,12 @@ const styles = StyleSheet.create({
   },
   largeScore: {
     alignItems: 'baseline',
+    backgroundColor: '#080a0e',
+    borderRadius: 8,
+    borderWidth: 1,
     flexDirection: 'row',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   largeScoreText: {
     color: '#19c58c',
@@ -342,35 +482,68 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
+  scoreMeterTrack: {
+    backgroundColor: '#252b35',
+    borderRadius: 999,
+    height: 9,
+    overflow: 'hidden',
+  },
+  scoreMeterFill: {
+    borderRadius: 999,
+    height: '100%',
+  },
+  researchStrip: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   summary: {
     color: '#dce4ef',
     fontSize: 15,
     lineHeight: 22,
   },
-  factorGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  factorCard: {
+  factorPanel: {
     backgroundColor: '#07090d',
     borderColor: '#242833',
     borderRadius: 8,
     borderWidth: 1,
-    flexBasis: '31%',
-    flexGrow: 1,
-    padding: 12,
+    gap: 12,
+    padding: 14,
+  },
+  factorRow: {
+    gap: 7,
+  },
+  factorTopLine: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  factorName: {
+    color: '#dce4ef',
+    fontSize: 13,
+    fontWeight: '800',
   },
   factorValue: {
     color: '#ffffff',
-    fontSize: 22,
+    fontSize: 15,
     fontWeight: '900',
   },
-  factorName: {
-    color: '#9ba4b2',
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 4,
+  factorTrack: {
+    backgroundColor: '#1c222c',
+    borderRadius: 999,
+    height: 8,
+    overflow: 'hidden',
+  },
+  factorFill: {
+    borderRadius: 999,
+    height: '100%',
+  },
+  riskBox: {
+    backgroundColor: '#17120b',
+    borderColor: '#4c3513',
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+    padding: 14,
   },
   riskTitle: {
     color: '#ffcc66',
@@ -381,6 +554,33 @@ const styles = StyleSheet.create({
     color: '#d8dce3',
     fontSize: 14,
     lineHeight: 21,
+  },
+  checklist: {
+    backgroundColor: '#0b1017',
+    borderColor: '#233041',
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 12,
+    padding: 14,
+  },
+  checklistItem: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  checkDot: {
+    backgroundColor: '#19c58c',
+    borderRadius: 999,
+    height: 8,
+    marginTop: 6,
+    width: 8,
+  },
+  checkText: {
+    color: '#cbd3df',
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
   },
   panel: {
     backgroundColor: '#111318',
